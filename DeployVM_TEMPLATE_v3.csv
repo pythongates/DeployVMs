@@ -1,0 +1,2 @@
+NameVM,Name,Boot,OSType,Timezone,Template,FolderId,ResourcePool,CPU,RAM,Disk2,Disk3,Disk4,Disk5,Disk6,Disk7,Disk8,Disk9,SDRS,Datastore,DiskStorageFormat,vSwitchName,NetType,Network,DHCP,IPAddress,SubnetMask,Gateway,pDNS,sDNS,Notes,POC,Domain,OU
+Server01,Server01,TRUE,Windows,105,Windows_2016_STD,Folder-group-v103,HostClusterName,2,8,20,,,,,,,,TRUE,DatastoreClusterName,Thin,vDS_SwitchName,vDS,1501,FALSE,192.168.200.12,255.255.255.0,192.168.200.1,192.168.200.12,192.168.200.11,SQL Server,John Smith,domain.local,"OU=Servers,OU=SQL,DC=domain,DC=local"
