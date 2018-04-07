@@ -58,6 +58,7 @@ Version: 1.8, April
 - Now handles non-domain 
 - added timezone
 - handle multiple domains in same csv and adding the computer objects to the domains
+- check for existing VMs in vCenter
 
 REQUIREMENTS
 PowerShell v3 or greater
@@ -142,9 +143,10 @@ $exportpath = $scriptDir + "\DeployVM.csv"
 $headers = "" | Select-Object NameVM, Name, Boot, OSType, Timezone, Template, FolderId, ResourcePool, CPU, RAM, Disk2, Disk3, Disk4, Disk5, Disk6, Disk7, Disk8, Disk9, SDRS, Datastore, DiskStorageFormat, vSwitchName, NetType, Network, DHCP, IPAddress, SubnetMask, Gateway, pDNS, sDNS, Notes, POC, Domain, OU
 $taskTab = @{}
 $credentials = @{}
-$failDeploy = @{}
-$successVMs = @{}
-$failReconfig = @{}
+$failDeploy = @()
+$successVMs = @()
+$failReconfig = @()
+$updatedVMs = @()
 
 #--------------------------------------------------------------------
 # Load Snap-ins
@@ -312,6 +314,24 @@ Try {
     Exit
 }
 
+
+# Check for existing VMs in vCenter and exclude them from list of New VMs to create
+Foreach ($VM in $newVMs) {
+    $VMExists = ""
+    $vmName = $VM.Name
+    try{ $VMExists = Get-VM $vmName -ErrorAction Stop } catch{}  
+    If ($VMExists) { 
+        Out-Log "`n$vmName already exists in $vcenter!!" "Red" 
+    } Else {
+        # Add non-existing VM to list of VMs to create
+        $updatedVMs += $VM
+    }
+}
+$newVMs = @()
+$newVMs = $updatedVMs
+
+
+
 # Reading VMs to deploy and if they are windows asking to load credentials per Domain
 Foreach ($VM in $newVMs) {
     $Error.Clear()
@@ -359,6 +379,10 @@ Foreach ($VM in $newVMs) {
     $timezone = $VM.timezone
     $v++
 	$vmStatus = "[{0} of {1}] {2}" -f $v, $newVMs.count, $vmName
+
+    # Remove any OSCustomizationSpec that may already exist from previous runs
+    try {Remove-OSCustomizationSpec -OSCustomizationSpec temp$vmName -Confirm:$false -ErrorAction SilentlyContinue} catch {}
+
 	Write-Progress -Activity "Deploying VMs" -Status $vmStatus -PercentComplete (100*$v/($newVMs.count))
     # Create custom OS Custumization spec
     If ($vm.DHCP -match "true") {
@@ -368,21 +392,23 @@ Foreach ($VM in $newVMs) {
                 #$fullname = $credential.UserName.Split('\')[1]  # Use POC for fullname 
                 $orgname = $credential.UserName.Split('\')[0]        
                  If ($orgname -eq "") {$orgname = "ORG"}  # If blank set the value
-                $credential = $credentials.Get_Item($VM.domain)                              
+                $credential = $credentials.Get_Item($VM.domain)                                        
                 $tempSpec = New-OSCustomizationSpec -Name temp$vmName -NamingScheme fixed `
                 -NamingPrefix $VM.Name -Domain $DomainName -FullName $fullname -OrgName $orgname `
-                -DomainCredentials $credential –TimeZone $timezone -ChangeSid -OSType Windows
+                -DomainCredentials $credential â€“TimeZone $timezone -ChangeSid -OSType Windows
 	              $tempSpec | Get-OSCustomizationNicMapping | Set-OSCustomizationNicMapping `
 	              -IpMode UseDhcp | Out-Null
             } Else {
+
                 $tempSpec = New-OSCustomizationSpec -Name temp$vmName -NamingScheme fixed `
                 -NamingPrefix $VM.Name -FullName $fullname -OrgName $VM.Name `
-                –TimeZone $timezone -ChangeSid -OSType Windows -Workgroup "WORKGROUP"
+                â€“TimeZone $timezone -ChangeSid -OSType Windows -Workgroup "WORKGROUP"
 	              $tempSpec | Get-OSCustomizationNicMapping | Set-OSCustomizationNicMapping `
 	              -IpMode UseDhcp | Out-Null
             }
 
 	    } ElseIF ($VM.OSType -eq "Linux") {
+ 
             $tempSpec = New-OSCustomizationSpec -Name temp$vmName -NamingScheme fixed `
             -NamingPrefix $VM.Name -Domain $DomainName -OSType Linux -DnsServer $VM.pDNS,$VM.sDNS
             $tempSpec | Get-OSCustomizationNicMapping | Set-OSCustomizationNicMapping `
@@ -397,21 +423,24 @@ Foreach ($VM in $newVMs) {
                 # $fullname = $credential.UserName.Split('\')[1]  # Use POC for fullname
                 $orgname = $credential.UserName.Split('\')[0]
                  If ($orgname -eq "") {$orgname = "ORG"}  # If blank set the value
+ 
                 $tempSpec = New-OSCustomizationSpec -Name temp$vmName -NamingScheme fixed `
                 -NamingPrefix $VM.Name -Domain $DomainName -FullName $fullname -OrgName $orgname `
-                -DomainCredentials $credential –TimeZone $timezone -ChangeSid -OSType Windows
+                -DomainCredentials $credential â€“TimeZone $timezone -ChangeSid -OSType Windows
                  $tempSpec | Get-OSCustomizationNicMapping | Set-OSCustomizationNicMapping `
 	             -IpMode UseStaticIP -IpAddress $VM.IPAddress -SubnetMask $VM.SubnetMask `
 	             -Dns $VM.pDNS,$VM.sDNS -DefaultGateway $VM.Gateway | Out-Null
             } Else {
+ 
                 $tempSpec = New-OSCustomizationSpec -Name temp$vmName -NamingScheme fixed `
                 -NamingPrefix $VM.Name -FullName $fullname -OrgName $VM.Name `
-                –TimeZone $timezone -ChangeSid -OSType Windows -Workgroup "WORKGROUP"
+                â€“TimeZone $timezone -ChangeSid -OSType Windows -Workgroup "WORKGROUP"
                  $tempSpec | Get-OSCustomizationNicMapping | Set-OSCustomizationNicMapping `
 	             -IpMode UseStaticIP -IpAddress $VM.IPAddress -SubnetMask $VM.SubnetMask `
 	             -Dns $VM.pDNS,$VM.sDNS -DefaultGateway $VM.Gateway | Out-Null
             }
 	    } ElseIF ($VM.OSType -eq "Linux") {
+ 
             $tempSpec = New-OSCustomizationSpec -Name temp$vmName -NamingScheme fixed `
             -NamingPrefix $VM.Name -Domain $VM.domain -OSType Linux -DnsServer $VM.pDNS,$VM.sDNS
             $tempSpec | Get-OSCustomizationNicMapping | Set-OSCustomizationNicMapping `
@@ -445,8 +474,6 @@ Foreach ($VM in $newVMs) {
         
         }
     }
-    # Remove temp OS Custumization spec
-    Remove-OSCustomizationSpec -OSCustomizationSpec temp$vmName -Confirm:$false
     # Log errors
     If ($Error.Count -ne 0) {
         If ($Error.Count -eq 1 -and $Error.Exception -match "'Location' expects a single value") {
@@ -559,7 +586,7 @@ while($runningTasks -gt 0){
       Set-Annotation -Entity $VM -CustomAttribute "CreatedBy" -Value $UserName -Confirm:$false | Out-Null
 
       # Set POC Annotation
-      $POC = "$VMConfig.POC"
+      $POC = $VMConfig.POC
       Out-Log "Setting POC Attribute value to $POC" "Yellow"
       Set-Annotation -Entity $VM -CustomAttribute "POC" -Value $POC -Confirm:$false | Out-Null
 
@@ -593,6 +620,14 @@ while($runningTasks -gt 0){
   }
   Start-Sleep -Seconds 10
 }
+
+
+# Remove temp OS Custumization specs
+Foreach ($VM in $newVMs) {
+	$vmName = $VM.Name
+    Remove-OSCustomizationSpec -OSCustomizationSpec temp$vmName -Confirm:$false
+}
+
 
 #--------------------------------------------------------------------
 # Close Connections
