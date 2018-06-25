@@ -63,7 +63,7 @@ Version: 1.9, April
 - 
 Version: 2.0, June
 - Updated to handle Disk1 - Disk9 (added Disk1 back)
-- Addedd Description CustomAttributesand used Notes in spreadsheet to populate
+- Added Description CustomAttributesand used Notes in spreadsheet to populate
 
 REQUIREMENTS
 PowerShell v3 or greater
@@ -343,6 +343,8 @@ $newVMs = $updatedVMs
 # }
 
 
+Out-Log "`nRequesting Domain Creds necessary to add VMs to AD" "Yellow"
+Out-Log "`nNo computer objects will be created for existing VM's!!!"
 $continue = Read-Host "`nDo you want to add VM computer objects to AD? (y/n)?"
 If ($continue -match "y") {
     # Reading VMs to deploy and if they are windows asking to load credentials per Domain
@@ -382,6 +384,13 @@ If ($continue -match "y") {
 }
 
 
+# Remove any OSCustomizationSpec that may already exist from previous runs
+Foreach ($VM in $newVMs) {
+	$vmName = $VM.Name
+    try {Remove-OSCustomizationSpec -OSCustomizationSpec temp$vmName -Confirm:$false -ErrorAction SilentlyContinue} catch {}
+}
+
+
 # Start provisioning VMs
 $v = 0
 Out-Log "Deploying VMs`n" "Yellow"
@@ -393,9 +402,6 @@ Foreach ($VM in $newVMs) {
     $timezone = $VM.timezone
     $v++
 	$vmStatus = "[{0} of {1}] {2}" -f $v, $newVMs.count, $vmName
-
-    # Remove any OSCustomizationSpec that may already exist from previous runs
-    try {Remove-OSCustomizationSpec -OSCustomizationSpec temp$vmName -Confirm:$false -ErrorAction SilentlyContinue} catch {}
 
 	Write-Progress -Activity "Deploying VMs" -Status $vmStatus -PercentComplete (100*$v/($newVMs.count))
     # Create custom OS Custumization spec
