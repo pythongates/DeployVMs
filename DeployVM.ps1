@@ -409,14 +409,14 @@ Foreach ($VM in $newVMs) {
                 $credential = $credentials.Get_Item($VM.domain)
                 $tempSpec = New-OSCustomizationSpec -Name temp$vmName -NamingScheme fixed `
                 -NamingPrefix $VM.Name -Domain $DomainName -FullName $fullname -OrgName $orgname `
-                -DomainCredentials $credential ï¿½TimeZone $timezone -ChangeSid -OSType Windows
+                -DomainCredentials $credential -TimeZone $timezone -ChangeSid -OSType Windows
 	              $tempSpec | Get-OSCustomizationNicMapping | Set-OSCustomizationNicMapping `
 	              -IpMode UseDhcp | Out-Null
             } Else {
 
                 $tempSpec = New-OSCustomizationSpec -Name temp$vmName -NamingScheme fixed `
                 -NamingPrefix $VM.Name -FullName $fullname -OrgName $VM.Name `
-                ï¿½TimeZone $timezone -ChangeSid -OSType Windows -Workgroup "WORKGROUP"
+                -TimeZone $timezone -ChangeSid -OSType Windows -Workgroup "WORKGROUP"
 	              $tempSpec | Get-OSCustomizationNicMapping | Set-OSCustomizationNicMapping `
 	              -IpMode UseDhcp | Out-Null
             }
@@ -440,7 +440,7 @@ Foreach ($VM in $newVMs) {
 
                 $tempSpec = New-OSCustomizationSpec -Name temp$vmName -NamingScheme fixed `
                 -NamingPrefix $VM.Name -Domain $DomainName -FullName $fullname -OrgName $orgname `
-                -DomainCredentials $credential ï¿½TimeZone $timezone -ChangeSid -OSType Windows
+                -DomainCredentials $credential -TimeZone $timezone -ChangeSid -OSType Windows
                  $tempSpec | Get-OSCustomizationNicMapping | Set-OSCustomizationNicMapping `
 	             -IpMode UseStaticIP -IpAddress $VM.IPAddress -SubnetMask $VM.SubnetMask `
 	             -Dns $VM.pDNS,$VM.sDNS -DefaultGateway $VM.Gateway | Out-Null
@@ -448,7 +448,7 @@ Foreach ($VM in $newVMs) {
 
                 $tempSpec = New-OSCustomizationSpec -Name temp$vmName -NamingScheme fixed `
                 -NamingPrefix $VM.Name -FullName $fullname -OrgName $VM.Name `
-                ï¿½TimeZone $timezone -ChangeSid -OSType Windows -Workgroup "WORKGROUP"
+                -TimeZone $timezone -ChangeSid -OSType Windows -Workgroup "WORKGROUP"
                  $tempSpec | Get-OSCustomizationNicMapping | Set-OSCustomizationNicMapping `
 	             -IpMode UseStaticIP -IpAddress $VM.IPAddress -SubnetMask $VM.SubnetMask `
 	             -Dns $VM.pDNS,$VM.sDNS -DefaultGateway $VM.Gateway | Out-Null
@@ -687,3 +687,4 @@ Out-Log "`n`n"
 Out-Log "**************************************************************************************"
 Out-Log "$scriptName`t`t`t`t`tFinish Time:`t$finishtime"
 Out-Log "**************************************************************************************"
+
